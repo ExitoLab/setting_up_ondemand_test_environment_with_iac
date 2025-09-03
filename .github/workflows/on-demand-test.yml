@@ -55,6 +55,7 @@ jobs:
         run: echo "ORG=$(pulumi whoami --show-org)" >> $GITHUB_ENV
 
       - name: Pulumi stack select/create
+        working-directory: infrastructure
         run: |
           STACK="$ORG/$PROJECT/$SANITIZED_BRANCH_NAME"
           pulumi stack select "$STACK" || pulumi stack init "$STACK"
@@ -62,11 +63,13 @@ jobs:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
 
       - name: Apply Pulumi.dev.yaml config to stack
+        working-directory: infrastructure
         run: |
           STACK="$ORG/$PROJECT/$SANITIZED_BRANCH_NAME"
           cp Pulumi.dev.yaml Pulumi."$SANITIZED_BRANCH_NAME".yaml
 
       - name: Pulumi preview
+        working-directory: infrastructure
         run: pulumi preview
         env:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
