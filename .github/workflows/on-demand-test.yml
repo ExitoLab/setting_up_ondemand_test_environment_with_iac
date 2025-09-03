@@ -17,7 +17,6 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     env:
-      ORG: ExitoLab
       PROJECT: qa-aci
       BRANCH_NAME: ${{ github.ref_name }}
 
@@ -49,6 +48,10 @@ jobs:
 
       - name: Sanitize branch name
         run: echo "SANITIZED_BRANCH_NAME=${BRANCH_NAME//\//-}" >> $GITHUB_ENV
+
+      - name: Detect Pulumi org
+        id: pulumi_org
+        run: echo "ORG=$(pulumi whoami --show-org)" >> $GITHUB_ENV
 
       - name: Pulumi stack select/create
         run: |
