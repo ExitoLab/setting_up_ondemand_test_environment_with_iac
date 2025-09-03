@@ -14,16 +14,17 @@ rg = azure.resources.ResourceGroup(f"{prefix}-rg",
     location=location
 )
 
+# Docker image passed from config (e.g. Pulumi.dev.yaml)
 docker_image = config.get("docker:image") or "mcr.microsoft.com/azuredocs/aci-helloworld"
 
-# Container Group (empty image placeholder for now)
+# Container Group
 container_group = azure.containerinstance.ContainerGroup(f"{prefix}-aci",
     resource_group_name=rg.name,
     location=rg.location,
     os_type="Linux",
     containers=[azure.containerinstance.ContainerArgs(
         name=f"{prefix}-app",
-        image=docker_image,  # temporary placeholder
+        image=docker_image,
         resources=azure.containerinstance.ResourceRequirementsArgs(
             requests=azure.containerinstance.ResourceRequestsArgs(
                 cpu=1.0,
@@ -39,6 +40,11 @@ container_group = azure.containerinstance.ContainerGroup(f"{prefix}-aci",
 )
 
 # Export outputs
-pulumi.export("app_fqdn", container_group.ip_address.apply(lambda ip: ip.fqdn))
-pulumi.export("container_group_name", container_group.name)
 pulumi.export("resource_group_name", rg.name)
+pulumi.export("container_group_name", container_group.name)
+pulumi.export(
+    "app_fqdn",
+    container_group.ip_address.apply(
+        lambda ip: ip.fqdn if ip and ip.fqdn else "not-assigned"
+    )
+)
