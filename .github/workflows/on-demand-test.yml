@@ -82,9 +82,24 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
 
+      - name: Wait for Pulumi output (app_fqdn)
+        working-directory: infrastructure
+        id: pulumi_output
+        run: |
+          for i in {1..10}; do
+            APP_FQDN=$(pulumi stack output app_fqdn)
+            if [ "$APP_FQDN" != "" ] && [ "$APP_FQDN" != "not-assigned" ]; then
+              echo "APP_FQDN=$APP_FQDN" >> $GITHUB_ENV
+              break
+            fi
+            echo "Waiting for app_fqdn..."
+            sleep 15
+          done
+
       - name: Run QA tests
         run: |
-          APP_URL=$(pulumi stack output app_fqdn --cwd infrastructure)
-          echo "Testing against http://$APP_URL"
+          echo "Testing against http://$APP_FQDN"
           pip install requests
-          python application/test.py http://$APP_URL
+          python application/test.py http://$APP_FQDN
+        env:
+          APP_FQDN: ${{ env.APP_FQDN }}

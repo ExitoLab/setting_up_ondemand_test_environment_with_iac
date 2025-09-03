@@ -65,4 +65,9 @@ except Exception:
 # --- Export outputs ---
 pulumi.export("resource_group_name", rg_name_out)
 pulumi.export("container_group_name", container_group_name_out)
-pulumi.export("app_fqdn", app_fqdn_out)
+pulumi.export(
+    "app_fqdn",
+    container_group.ip_address.apply(
+        lambda ip: ip.fqdn if ip and ip.fqdn else "not-assigned"
+    )
+)
