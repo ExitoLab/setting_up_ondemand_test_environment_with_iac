@@ -1,0 +1,3 @@
+config:
+  azure:location: eastus
+  azure:env: dev

@@ -1,0 +1,4 @@
+name: qa-aci
+description: "Ephemeral QA environments for Flask app using Azure Container Instances"
+runtime: python
+main: __main__.py

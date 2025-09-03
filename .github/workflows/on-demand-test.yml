@@ -1,0 +1,54 @@
+name: QA On-Demand Environment
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+  pull_request:
+    types: [closed]
+
+jobs:
+  deploy:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    env:
+      BRANCH_NAME: ${{ github.ref_name }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # - name: Build & Push Docker image
+      #   run: |
+      #     docker build -t yourdockerhubusername/flask-app:${BRANCH_NAME} .
+      #     echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+      #     docker push yourdockerhubusername/flask-app:${BRANCH_NAME}
+
+      - name: Install Pulumi CLI
+        uses: pulumi/actions@v4
+
+      - name: Install dependencies
+        run: pip install pulumi pulumi-azure-native
+
+      - name: Azure Login
+        uses: azure/login@v2.3.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Pulumi login
+        run: pulumi login --local
+
+      - name: Pulumi stack select/create
+        run: |
+          pulumi stack select ${BRANCH_NAME} || pulumi stack init ${BRANCH_NAME}
+
+      - name: Pulumi preview select/create
+        run: |
+          pulumi preview
+
+      # - name: Pulumi up
+      #   run: pulumi up --yes
+      #   env:
+      #     PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
