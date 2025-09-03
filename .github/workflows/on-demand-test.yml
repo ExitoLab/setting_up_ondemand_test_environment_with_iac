@@ -24,10 +24,26 @@ jobs:
       ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      DOCKER_USER: ${{ secrets.DOCKER_USER }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      DOCKER_REPO: ${{ secrets.DOCKER_REPO }} # e.g., your-dockerhub-username/qa-app
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Sanitize branch name
+        run: echo "SANITIZED_BRANCH_NAME=${BRANCH_NAME//\//-}" >> $GITHUB_ENV
+
+      - name: Log in to Docker Hub
+        run: echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
+
+      - name: Build and push Docker image
+        run: |
+          IMAGE_TAG=${DOCKER_REPO}:${SANITIZED_BRANCH_NAME}
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          docker build -t $IMAGE_TAG ./application
+          docker push $IMAGE_TAG
 
       - name: Install Pulumi CLI
         uses: pulumi/actions@v4
@@ -38,9 +54,6 @@ jobs:
       - name: Pulumi login
         run: pulumi login --local
 
-      - name: Sanitize branch name
-        run: echo "SANITIZED_BRANCH_NAME=${BRANCH_NAME//\//-}" >> $GITHUB_ENV
-
       - name: Detect Pulumi org
         id: pulumi_org
         run: echo "ORG=$(pulumi whoami --show-org)" >> $GITHUB_ENV
@@ -50,25 +63,28 @@ jobs:
         run: |
           STACK="$ORG/$PROJECT/$SANITIZED_BRANCH_NAME"
           pulumi stack select "$STACK" || pulumi stack init "$STACK"
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
 
       - name: Apply Pulumi.dev.yaml config to stack
         working-directory: infrastructure
         run: cp Pulumi.dev.yaml Pulumi."$SANITIZED_BRANCH_NAME".yaml
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
 
-      - name: Pulumi preview
+      - name: Update stack config with Docker image
         working-directory: infrastructure
-        run: pulumi preview
+        run: pulumi config set docker:image $IMAGE_TAG --stack $ORG/$PROJECT/$SANITIZED_BRANCH_NAME
+
+      - name: Pulumi up (deploy)
+        working-directory: infrastructure
+        run: pulumi up --yes
         env:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+
+      - name: Run QA tests
+        run: |
+          APP_URL=$(pulumi stack output app_fqdn --cwd infrastructure)
+          echo "Testing against http://$APP_URL"
+          pip install requests
+          python application/test.py http://$APP_URL

@@ -14,6 +14,8 @@ rg = azure.resources.ResourceGroup(f"{prefix}-rg",
     location=location
 )
 
+docker_image = config.get("docker:image") or "mcr.microsoft.com/azuredocs/aci-helloworld"
+
 # Container Group (empty image placeholder for now)
 container_group = azure.containerinstance.ContainerGroup(f"{prefix}-aci",
     resource_group_name=rg.name,
@@ -21,7 +23,7 @@ container_group = azure.containerinstance.ContainerGroup(f"{prefix}-aci",
     os_type="Linux",
     containers=[azure.containerinstance.ContainerArgs(
         name=f"{prefix}-app",
-        image="mcr.microsoft.com/azuredocs/aci-helloworld",  # temporary placeholder
+        image=docker_image,  # temporary placeholder
         resources=azure.containerinstance.ResourceRequirementsArgs(
             requests=azure.containerinstance.ResourceRequestsArgs(
                 cpu=1.0,
