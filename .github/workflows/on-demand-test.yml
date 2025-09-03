@@ -19,6 +19,7 @@ jobs:
     env:
       PROJECT: qa-aci
       BRANCH_NAME: ${{ github.ref_name }}
+      PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}  
 
     steps:
       - name: Checkout code
@@ -57,6 +58,8 @@ jobs:
         run: |
           STACK="$ORG/$PROJECT/$SANITIZED_BRANCH_NAME"
           pulumi stack select "$STACK" || pulumi stack init "$STACK"
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
 
       - name: Apply Pulumi.dev.yaml config to stack
         run: |
@@ -65,3 +68,5 @@ jobs:
 
       - name: Pulumi preview
         run: pulumi preview
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
