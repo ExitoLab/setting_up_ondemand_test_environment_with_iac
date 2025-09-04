@@ -72,12 +72,24 @@ jobs:
         working-directory: infrastructure
         run: pulumi config set docker:image $IMAGE_TAG --stack $ORG/$PROJECT/$SANITIZED_BRANCH_NAME
 
-      - name: Pulumi up (deploy)
+      - name: Wait for Pulumi output (app_fqdn)
         working-directory: infrastructure
-        run: pulumi up --yes
+        id: pulumi_output
+        run: |
+          for i in {1..10}; do
+            APP_FQDN=$(pulumi stack output app_fqdn)
+            if [ "$APP_FQDN" != "" ] && [ "$APP_FQDN" != "not-assigned" ]; then
+              echo "APP_FQDN=$APP_FQDN" >> $GITHUB_ENV
+              break
+            fi
+            echo "Waiting for app_fqdn..."
+            sleep 15
+          done
+
+      - name: Run QA tests
+        run: |
+          echo "Testing against http://$APP_FQDN"
+          pip install requests
+          python application/test.py http://$APP_FQDN
         env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          APP_FQDN: ${{ env.APP_FQDN }}
