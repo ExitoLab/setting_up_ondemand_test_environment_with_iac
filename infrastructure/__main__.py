@@ -10,9 +10,10 @@ prefix = f"qa-{env}"
 rg_name = f"{prefix}-rg"
 aci_name = f"{prefix}-aci"
 
-# --- Try to re-use existing Resource Group ---
+# --- Try to get existing Resource Group ---
 try:
     existing_rg = azure.resources.get_resource_group(resource_group_name=rg_name)
+    rg_id = existing_rg.id
     rg_name_out = existing_rg.name
 except Exception:
     rg = azure.resources.ResourceGroup(
@@ -20,12 +21,13 @@ except Exception:
         resource_group_name=rg_name,
         location=location
     )
+    rg_id = rg.id
     rg_name_out = rg.name
 
 # Docker image passed from config (e.g. Pulumi.dev.yaml)
 docker_image = config.get("docker:image") or "mcr.microsoft.com/azuredocs/aci-helloworld"
 
-# --- Try to re-use existing Container Group ---
+# --- Try to get existing Container Group ---
 try:
     existing_aci = azure.containerinstance.get_container_group(
         resource_group_name=rg_name,
@@ -56,6 +58,8 @@ except Exception:
             ports=[azure.containerinstance.PortArgs(port=80, protocol="TCP")],
             type="Public",
         ),
+        # Force replacement if the container image changes
+        opts=pulumi.ResourceOptions(replace_on_changes=["containers.0.image"]),
     )
     container_group_name_out = container_group.name
     app_fqdn_out = container_group.ip_address.apply(
@@ -65,9 +69,4 @@ except Exception:
 # --- Export outputs ---
 pulumi.export("resource_group_name", rg_name_out)
 pulumi.export("container_group_name", container_group_name_out)
-pulumi.export(
-    "app_fqdn",
-    container_group.ip_address.apply(
-        lambda ip: ip.fqdn if ip and ip.fqdn else "not-assigned"
-    )
-)
+pulumi.export("app_fqdn", app_fqdn_out)
