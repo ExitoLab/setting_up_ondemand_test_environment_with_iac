@@ -25,7 +25,7 @@ except Exception:
     rg_name_out = rg.name
 
 # Docker image passed from config (e.g. Pulumi.dev.yaml)
-docker_image = "talk2toks/qa-app:main"
+docker_image = config.get("docker:image") or "mcr.microsoft.com/azuredocs/aci-helloworld"
 
 # --- Try to get existing Container Group ---
 try:
