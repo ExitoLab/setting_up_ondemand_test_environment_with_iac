@@ -25,7 +25,7 @@ except Exception:
     rg_name_out = rg.name
 
 # Docker image passed from config (e.g. Pulumi.dev.yaml)
-docker_image = "docker pull talk2toks/qa-app:main"
+docker_image = "talk2toks/qa-app:main"
 
 # --- Try to get existing Container Group ---
 try:
